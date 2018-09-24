@@ -4,7 +4,7 @@ class LocalSocket
   attr_reader :connected
   CONNECTION_TEST = "connection_test"
 
-  def initialize(receive_channel, send_channel, max_message_size=5000, thread_sleep=0.1, socket_timeout=60)
+  def initialize(receive_channel, send_channel, max_message_size=5000, thread_sleep=0.1)
     @receive_channel = receive_channel
     @send_channel = send_channel
     @max_message_size = max_message_size
