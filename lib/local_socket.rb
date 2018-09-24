@@ -22,7 +22,7 @@ class LocalSocket
       @socket.sendmsg_nonblock(msg, 0, @snd_addrInfo)
       flag = true
     rescue => e
-      puts "Error: #{e}" unless "#{e}".include? "Connection refused"
+      puts "Error: #{e}" unless "#{e}".include? "Connection refused" or "#{e}".include? "No such file"
       flag = false
     end
     return flag
@@ -32,7 +32,7 @@ class LocalSocket
     begin
       File.unlink @receive_channel
     rescue => e
-      puts "#{e}"
+      puts "#{e}" unless "#{e}".include? "No such file"
     end
     @socket = Socket.new(:UNIX, :DGRAM, 0)
     @snd_addrInfo = Addrinfo.unix(@send_channel)
