@@ -1,0 +1,6 @@
+module LocalSocketStatus
+  CONNECTED     = "CONNECTED"
+  CONNECTING    = "CONNECTING"
+  DISCONNECTED  = "DISCONNECTED"
+  TIMED_OUT     = "TIMED_OUT"
+end

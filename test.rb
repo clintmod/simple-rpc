@@ -6,6 +6,25 @@ require 'simple-rpc'
 
 class Client
 
+  def initialize
+    @rpc = SimpleRPC.new(self)
+    @rpc.add_listener(LocalSocketEvents::CONNECTION_CHANGED, method(:connection_changed))
+    @rpc.connect
+  end
+
+  def connection_changed(status)
+    puts "status = #{status}"
+    if status == LocalSocketStatus::CONNECTED
+      test_all
+    end
+  end
+
+  def test_all
+    @rpc.send_msg("say_hello", "awesome", "dude")
+    @rpc.send_msg("test_hash", {test:"asdf"})
+    @rpc.send_msg("test_class", TestClass.new('asdf1', 'asdf2'))
+  end
+
   def say_hello(adjective, sender)
     puts "hello #{adjective} #{sender}"
   end
@@ -36,19 +55,7 @@ class TestClass
   end
 end
 
-client = Client.new
-@rpc = SimpleRPC.new(client)
-
-loop do
-  puts "Press enter to test strings"
-  $stdin.gets.chomp
-  @rpc.send_msg("say_hello", "awesome", "dude")
-
-  puts "Press enter to test hashes"
-  $stdin.gets.chomp
-  @rpc.send_msg("test_hash", {test:"asdf"})
-
-  puts "Press enter to test class instance"
-  $stdin.gets.chomp
-  @rpc.send_msg("test_class", TestClass.new('asdf1', 'asdf2'))
+Client.new
+while true
+  sleep 1
 end

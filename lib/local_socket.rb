@@ -1,7 +1,11 @@
+require 'set'
 require 'socket'
+require 'local_socket_events'
+require 'local_socket_status'
 
 class LocalSocket
-  attr_reader :connected
+  attr_reader :status
+  
   CONNECTION_TEST = "connection_test"
 
   def initialize(receive_channel, send_channel, max_message_size=5000, thread_sleep=0.1)
@@ -9,11 +13,11 @@ class LocalSocket
     @send_channel = send_channel
     @max_message_size = max_message_size
     @thread_sleep = thread_sleep
-    @last_connected_status = nil
-    @connected = false
+    @last_status = nil
+    @status = false
     @receiver_thread = nil
-    @connection_thread = nil
-    bind
+    @_thread = nil
+    @listeners = {}
   end
 
   def send_msg(msg)
@@ -28,6 +32,14 @@ class LocalSocket
     return flag
   end
 
+  def connect
+    puts "calling connect"
+    bind
+    setup_receiver_thread
+    setup_status_thread
+    puts "finished calling connect"
+  end
+
   def bind
     begin
       File.unlink @receive_channel
@@ -40,18 +52,13 @@ class LocalSocket
     @socket.bind(@rcv_addrInfo)
   end
 
-  def join
-    @receiver_thread.join
-  end
-
-
-  def message_received
+  def setup_receiver_thread
     @receiver_thread = Thread.new do
       loop do
         begin
           result = @socket.recv_nonblock(@max_message_size)
           if result != CONNECTION_TEST
-            yield result
+            notify(LocalSocketEvents::MESSAGE_RECEIVED, result)
           end
         rescue => e
           puts "#{e}" unless "#{e}".include? "would block"
@@ -61,20 +68,33 @@ class LocalSocket
     end
   end
 
-  def connection_changed
-    @connection_thread = Thread.new do
+  def setup_status_thread
+    @status_thread = Thread.new do
+      # todo:clintmod implement timeout
       loop do
         if send_msg(CONNECTION_TEST) 
-          @connected = true
+          @status = LocalSocketStatus::CONNECTED
         else
-          @connected = false
+          @status = LocalSocketStatus::DISCONNECTED
         end
-        if @last_connected_status != @connected
-          yield @connected
+        if @last_status != @status
+          notify(LocalSocketEvents::CONNECTION_CHANGED, @status)
         end
-        @last_connected_status = @connected
+        @last_status = @status
         sleep @thread_sleep
       end
+    end
+  end
+
+  def add_listener(event, listener)
+    @listeners[event] ||= Set.new
+    @listeners[event] << listener
+  end
+
+  def notify(event, data)
+    puts "notify with event: #{event}, data: #{data}"
+    @listeners[event] && @listeners[event].each do |listener|
+      listener.call data
     end
   end
 
