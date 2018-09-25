@@ -24,17 +24,17 @@ You can clone this repository and open two different console windows and run:
 
 Console 1
 
-`CHANNEL=/tmp/asdf ./test.rb `
+`CHANNEL=/tmp/asdf ./client1.rb `
 
 Console 2
 
-`CHANNEL=/tmp/asdf CHILD=1 ./test.rb`
+`CHANNEL=/tmp/asdf CHILD=1 ./client2.rb`
 
 
 The `CHILD=1` env var flips the channels in the second process so that they the two processes can send and receive on two local unix sockets as defined by the `CHANNEL` env var.
 
 
-Here's the contents of ./test.rb
+Here's the contents of ./client1.rb
 
 ```
 
@@ -46,55 +46,68 @@ require 'simple-rpc'
 
 class Client
 
+  def initialize
+    @rpc = SimpleRPC::RPC.new(self)
+    @rpc.add_listener(SimpleRPC::Events::CONNECTION_CHANGED, method(:connection_changed))
+    @rpc.connect
+  end
+
+  def connection_changed(status)
+    puts "status = #{status}"
+    if status == SimpleRPC::Status::CONNECTED
+      test_all
+    end
+  end
+
+  def test_all
+    @rpc.send_msg("say_hello", "awesome", "dude")
+    @rpc.send_msg("test_hash", {test:"asdf"})
+  end
+
+end
+
+Client.new
+while true
+  sleep 1
+end
+
+```
+
+and here are the contents of ./client2.rb
+
+```
+
+#! /usr/bin/env ruby
+
+$:.unshift(File.join(File.dirname(__FILE__), '/lib'))
+
+require 'simple-rpc'
+
+class Client
+
+  def initialize
+    @rpc = SimpleRPC::RPC.new(self)
+    @rpc.connect
+  end
+
   def say_hello(adjective, sender)
     puts "hello #{adjective} #{sender}"
   end
 
-  def test_hash(some_hash)
-    puts "hash = #{some_hash}"
-  end
-
-  def test_class(test_class)
-    puts "test_class = #{test_class}"
+  def test_hash(data)
+    puts "hash = #{data}"
   end
 
 end
 
-class TestClass
-  def initialize(a, b)
-    @a = a
-    @b = b
-  end
-
-  def to_json(options = {})
-    {'a' => @a, 'b' => @b}.to_json
-  end
-
-  def self.from_json string
-    data = JSON.load string
-    self.new data['a'], data['b']
-  end
-end
-
-client = Client.new
-@rpc = SimpleRPC.new(client)
-
-loop do
-  puts "Press enter to test strings"
-  $stdin.gets.chomp
-  @rpc.send_msg("say_hello", "awesome", "dude")
-
-  puts "Press enter to test hashes"
-  $stdin.gets.chomp
-  @rpc.send_msg("test_hash", {test:"asdf"})
-
-  puts "Press enter to test class instance"
-  $stdin.gets.chomp
-  @rpc.send_msg("test_class", TestClass.new('asdf1', 'asdf2'))
+Client.new
+while true
+  sleep 1
 end
 
 
 ```
+
 
 ## Development
 
