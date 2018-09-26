@@ -8,12 +8,17 @@ module SimpleRPC
     def initialize(client)
       @client = client
       is_child = ENV['CHILD'] ? true : false
+      raise "env var 'CHANNEL' not set" unless ENV['CHANNEL']
       parent_channel = ENV['CHANNEL'] + '_parent'
       child_channel = ENV['CHANNEL'] + '_child'
       receive_channel = is_child ? parent_channel : child_channel
       send_channel = is_child ? child_channel : parent_channel
       @socket = LocalSocket.new(receive_channel, send_channel)
       @socket.add_listener(Events::MESSAGE_RECEIVED, method(:message_received))
+    end
+
+    def is_connected?
+      @socket.status == Status::CONNECTED
     end
 
     def message_received json_array_string
